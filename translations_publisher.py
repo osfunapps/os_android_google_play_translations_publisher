@@ -36,7 +36,10 @@ argparser.add_argument('languages_array',
 def update_app_translations(package_name, json_path):
     # Authenticate and construct service.
     json_dict = fh.json_file_to_dict(json_path)
-    json_str = json.dumps(json_dict)
+    if json_dict["updated"]:
+        return
+    languages_list = json_dict["languages"]
+    json_str = json.dumps(languages_list)
     argv = ["", package_name, json_str]
     service, flags = sample_tools.init(
         argv,
@@ -48,7 +51,6 @@ def update_app_translations(package_name, json_path):
 
     # Process flags and read their values.
     package_name = flags.package_name
-    languages_array = json.loads(flags.languages_array)
 
     try:
         edit_request = service.edits().insert(body={}, packageName=package_name)
@@ -56,11 +58,8 @@ def update_app_translations(package_name, json_path):
         edit_id = result['id']
 
         # counter = 0
-        for i in range(0, len(languages_array)):
-            language_json = languages_array[i]
-
-            if 'updated' in language_json and language_json['updated'] is True:
-                continue
+        for i in range(0, len(languages_list)):
+            language_json = languages_list[i]
 
             # strip props
             lang = language_json["lang"]
@@ -92,11 +91,11 @@ def update_app_translations(package_name, json_path):
                     print(error)
             print('Listing DESCRIPTION for language %s was updated.'
                   % lang)
-            languages_array[i]["updated"] = True
-            fh.dict_to_json_file(json_path, languages_array)
 
         try:
             service.edits().commit(editId=edit_id, packageName=package_name).execute()
+            json_dict["updated"] = True
+            fh.dict_to_json_file(json_path, json_dict)
 
             # update the json file
 
